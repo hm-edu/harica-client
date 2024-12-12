@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/hm-edu/harica/client"
 	"github.com/spf13/cobra"
@@ -28,29 +30,29 @@ var genCertCmd = &cobra.Command{
 		requester, err := client.NewClient(requesterEmail, requesterPassword, requesterTOTPSeed, client.WithDebug(debug))
 		if err != nil {
 			slog.Error("failed to create requester client", slog.Any("error", err))
-			return
+			os.Exit(1)
 		}
 		validator, err := client.NewClient(validatorEmail, validatorPassword, validatorTOTPSeed, client.WithDebug(debug))
 		if err != nil {
 			slog.Error("failed to create validator client", slog.Any("error", err))
-			return
+			os.Exit(1)
 		}
 
 		d, err := requester.CheckDomainNames(domains)
 		if err != nil {
 			slog.Error("failed to check domain names", slog.Any("error", err))
-			return
+			os.Exit(1)
 		}
 		transaction, err := requester.RequestCertificate(d, csr, transactionType)
 		if err != nil {
 			slog.Error("failed to request certificate", slog.Any("error", err))
-			return
+			os.Exit(1)
 		}
 
 		reviews, err := validator.GetPendingReviews()
 		if err != nil {
 			slog.Error("failed to get pending reviews", slog.Any("error", err))
-			return
+			os.Exit(1)
 		}
 
 		for _, r := range reviews {
@@ -59,7 +61,7 @@ var genCertCmd = &cobra.Command{
 					err = validator.ApproveRequest(s.ReviewID, "Auto Approval", s.ReviewValue)
 					if err != nil {
 						slog.Error("failed to approve request", slog.Any("error", err))
-						return
+						os.Exit(1)
 					}
 				}
 			}
@@ -67,9 +69,9 @@ var genCertCmd = &cobra.Command{
 		cert, err := requester.GetCertificate(transaction.TransactionID)
 		if err != nil {
 			slog.Error("failed to get certificate", slog.Any("error", err))
-			return
+			os.Exit(1)
 		}
-		slog.Info("got certificate", slog.Any("certificate", cert))
+		fmt.Print(cert.PemBundle)
 	},
 }
 
