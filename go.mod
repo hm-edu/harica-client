@@ -3,7 +3,7 @@ module github.com/hm-edu/harica-client
 go 1.23.3
 
 require (
-	github.com/go-co-op/gocron/v2 v2.12.4
+	github.com/go-co-op/gocron/v2 v2.13.0
 	github.com/go-resty/resty/v2 v2.16.2
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/pquerna/otp v1.4.0
