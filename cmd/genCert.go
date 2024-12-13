@@ -87,12 +87,12 @@ func init() {
 	genCertCmd.Flags().StringVar(&validatorPassword, "validator-password", "", "Password of validator")
 	genCertCmd.Flags().StringVar(&validatorTOTPSeed, "validator-totp-seed", "", "TOTP seed of validator")
 	genCertCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging")
-	genCertCmd.MarkFlagRequired("domains")
-	genCertCmd.MarkFlagRequired("csr")
-	genCertCmd.MarkFlagRequired("requester-email")
-	genCertCmd.MarkFlagRequired("requester-password")
-	genCertCmd.MarkFlagRequired("requester-totp-seed")
-	genCertCmd.MarkFlagRequired("validator-email")
-	genCertCmd.MarkFlagRequired("validator-password")
-	genCertCmd.MarkFlagRequired("validator-totp-seed")
+	genCertCmd.MarkFlagRequired("domains")             //nolint:errcheck
+	genCertCmd.MarkFlagRequired("csr")                 //nolint:errcheck
+	genCertCmd.MarkFlagRequired("requester-email")     //nolint:errcheck
+	genCertCmd.MarkFlagRequired("requester-password")  //nolint:errcheck
+	genCertCmd.MarkFlagRequired("requester-totp-seed") //nolint:errcheck
+	genCertCmd.MarkFlagRequired("validator-email")     //nolint:errcheck
+	genCertCmd.MarkFlagRequired("validator-password")  //nolint:errcheck
+	genCertCmd.MarkFlagRequired("validator-totp-seed") //nolint:errcheck
 }
