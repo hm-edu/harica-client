@@ -21,6 +21,7 @@ const (
 	LoginPathTotp         = "/api/User/Login2FA"
 	RevocationReasonsPath = "/api/Certificate/GetRevocationReasons"
 	DomainValidationsPath = "/api/ServerCertificate/GetDomainValidations"
+	ApplicationJson       = "application/json"
 	RefreshInterval       = 15 * time.Minute
 )
 
@@ -32,6 +33,14 @@ type Client struct {
 }
 
 type Option func(*Client)
+
+type UnexpectedResponseContentTypeError struct {
+	ContentType string
+}
+
+func (e *UnexpectedResponseContentTypeError) Error() string {
+	return fmt.Sprintf("unexpected response content type: %s", e.ContentType)
+}
 
 func NewClient(user, password, totpSeed string, options ...Option) (*Client, error) {
 	c := Client{}
@@ -106,7 +115,7 @@ func (c *Client) loginTotp(user, password, totpSeed string) error {
 	}
 	resp, err := r.
 		R().SetHeaderVerbatim("RequestVerificationToken", verificationToken).
-		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Type", ApplicationJson).
 		SetBody(map[string]string{"email": user, "password": password, "token": otp}).
 		Post(BaseURL + LoginPathTotp)
 	if err != nil {
@@ -136,7 +145,7 @@ func (c *Client) login(user, password string) error {
 	}
 	resp, err := r.
 		R().SetHeaderVerbatim("RequestVerificationToken", verificationToken).
-		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Type", ApplicationJson).
 		SetBody(map[string]string{"email": user, "password": password}).
 		Post(BaseURL + LoginPath)
 	if err != nil {
@@ -187,27 +196,35 @@ func (c *Client) CheckMatchingOrganization(domains []string) ([]models.Organizat
 		domainDto = append(domainDto, Domain{Domain: domain})
 	}
 	var response []models.OrganizationResponse
-	_, err := c.client.R().
-		SetHeader("Content-Type", "application/json").
+	resp, err := c.client.R().
+		SetHeader("Content-Type", ApplicationJson).
+		ExpectContentType(ApplicationJson).
 		SetResult(&response).SetBody(domainDto).
 		Post(BaseURL + "/api/ServerCertificate/CheckMachingOrganization")
 	if err != nil {
 		return nil, err
 	}
+	if !strings.Contains(resp.Header().Get("Content-Type"), ApplicationJson) {
+		return nil, &UnexpectedResponseContentTypeError{ContentType: resp.Header().Get("Content-Type")}
+	}
 	return response, nil
 }
 
-func (c *Client) GetCertificate(id string) (models.CertificateResponse, error) {
+func (c *Client) GetCertificate(id string) (*models.CertificateResponse, error) {
 	var cert models.CertificateResponse
-	_, err := c.client.R().
+	resp, err := c.client.R().
 		SetResult(&cert).
-		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Type", ApplicationJson).
+		ExpectContentType(ApplicationJson).
 		SetBody(map[string]interface{}{"id": id}).
 		Post(BaseURL + "/api/Certificate/GetCertificate")
 	if err != nil {
-		return cert, err
+		return nil, err
 	}
-	return cert, nil
+	if !strings.Contains(resp.Header().Get("Content-Type"), ApplicationJson) {
+		return nil, &UnexpectedResponseContentTypeError{ContentType: resp.Header().Get("Content-Type")}
+	}
+	return &cert, nil
 }
 
 func (c *Client) CheckDomainNames(domains []string) ([]models.DomainResponse, error) {
@@ -216,24 +233,29 @@ func (c *Client) CheckDomainNames(domains []string) ([]models.DomainResponse, er
 		domainDto = append(domainDto, Domain{Domain: domain})
 	}
 	domainResp := make([]models.DomainResponse, 0)
-	_, err := c.client.R().
+	resp, err := c.client.R().
 		SetResult(&domainResp).
-		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Type", ApplicationJson).
+		ExpectContentType(ApplicationJson).
 		SetBody(domainDto).
 		Post(BaseURL + "/api/ServerCertificate/CheckDomainNames")
 	if err != nil {
 		return nil, err
 	}
+	if !strings.Contains(resp.Header().Get("Content-Type"), ApplicationJson) {
+		return nil, &UnexpectedResponseContentTypeError{ContentType: resp.Header().Get("Content-Type")}
+	}
 	return domainResp, nil
 }
 
-func (c *Client) RequestCertificate(domains []models.DomainResponse, csr string, transactionType string) (models.CertificateRequestResponse, error) {
+func (c *Client) RequestCertificate(domains []models.DomainResponse, csr string, transactionType string) (*models.CertificateRequestResponse, error) {
 	domainJsonBytes, _ := json.Marshal(domains)
 	domainJson := string(domainJsonBytes)
 	var result models.CertificateRequestResponse
-	_, err := c.client.R().
+	resp, err := c.client.R().
 		SetHeader("Content-Type", "multipart/form-data").
 		SetResult(&result).
+		ExpectContentType(ApplicationJson).
 		SetMultipartFormData(map[string]string{
 			"domains":         domainJson,
 			"domainsString":   domainJson,
@@ -245,16 +267,20 @@ func (c *Client) RequestCertificate(domains []models.DomainResponse, csr string,
 		}).
 		Post(BaseURL + "/api/ServerCertificate/RequestServerCertificate")
 	if err != nil {
-		return result, err
+		return nil, err
 	}
-	return result, nil
+	if !strings.Contains(resp.Header().Get("Content-Type"), ApplicationJson) {
+		return nil, &UnexpectedResponseContentTypeError{ContentType: resp.Header().Get("Content-Type")}
+	}
+	return &result, nil
 }
 
 func (c *Client) GetPendingReviews() ([]models.ReviewResponse, error) {
 	var pending []models.ReviewResponse
-	_, err := c.client.R().
+	resp, err := c.client.R().
 		SetResult(&pending).
-		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Type", ApplicationJson).
+		ExpectContentType(ApplicationJson).
 		SetBody(models.ReviewRequest{
 			StartIndex:     0,
 			Status:         "Pending",
@@ -263,6 +289,9 @@ func (c *Client) GetPendingReviews() ([]models.ReviewResponse, error) {
 		Post(BaseURL + "/api/OrganizationValidatorSSL/GetSSLReviewableTransactions")
 	if err != nil {
 		return nil, err
+	}
+	if !strings.Contains(resp.Header().Get("Content-Type"), ApplicationJson) {
+		return nil, &UnexpectedResponseContentTypeError{ContentType: resp.Header().Get("Content-Type")}
 	}
 	return pending, nil
 }
